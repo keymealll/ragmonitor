@@ -11,3 +11,6 @@ node_modules/
 website-chatbot/.env
 
 # Hallmark keeps its own .gitignore inside each .hallmark/ folder (screenshots stay out, log.json stays in)
+
+# Demo video renders
+demo/out/

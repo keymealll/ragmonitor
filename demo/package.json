@@ -1,0 +1,8 @@
+{
+  "name": "ragmonitor-demo-video",
+  "private": true,
+  "type": "module",
+  "description": "Records the 3-minute RagMonitor demo video by driving the real app in Chrome.",
+  "scripts": { "record": "node record.mjs" },
+  "dependencies": { "puppeteer-core": "24.31.0" }
+}

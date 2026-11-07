@@ -8,6 +8,8 @@
 - **Devpost needs:** project name + problem/solution description, GitHub repo link, short demo video, the challenge prompt entered, all 3 teammates added.
 
 ## The product (one line)
+**Product name: Cyber Tiger** (logo `Logofinal.png`, also `dashboard/ui/cybertiger-logo.png` and the cropped `cybertiger-mark.png`). The code keeps the working name RagMonitor: `ragmon/`, `RAGMON_*`, `rm_live_` tokens.
+
 An always-on monitor for SMEs running AI chatbots trained on their own documents. It shows a non-technical business owner what their chatbot actually retrieved and said, alerts on leaks, poisoned documents and policy breaks, and traces every alert back to the exact document.
 
 ## Positioning (for pitch + README)

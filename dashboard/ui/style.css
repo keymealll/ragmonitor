@@ -12,8 +12,6 @@
 /* ---------------------------------------------------------------- shell */
 
 body { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 100dvh; font-size: var(--text-md); }
-body.owner .eng-only { display: none !important; }
-body.engineer .owner-only { display: none !important; }
 
 .sidenav {
   position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: var(--space-3xs);
@@ -29,7 +27,7 @@ body.engineer .owner-only { display: none !important; }
 .sidenav a.active { background: var(--color-cotton); color: var(--color-ink); font-weight: 500; box-shadow: var(--edge-stock), var(--cast-stock); }
 .sidenav .brand { gap: var(--space-xs); min-height: 48px; margin-bottom: var(--space-md); color: var(--color-ink); font-weight: 600; font-size: var(--text-lg); letter-spacing: -0.02em; }
 .sidenav .brand:hover { background: transparent; }
-.sidenav .brand svg { color: var(--color-accent-2); }
+.sidenav .brand img { width: 32px; height: 32px; border-radius: var(--radius-input); flex: none; }
 .sidenav .badge {
   margin-left: auto; min-width: 24px; padding: 0 var(--space-2xs); border: 1px solid var(--sev-critical); border-radius: var(--radius-input);
   color: var(--color-ink); font: 400 var(--text-xs)/20px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums;
@@ -200,8 +198,8 @@ td .d { margin-top: var(--space-3xs); color: var(--color-muted); overflow-wrap: 
 .verdict .reason { margin-top: var(--space-sm); color: var(--color-ink-2); max-width: 42ch; }
 .verdict .btn { margin-top: var(--space-lg); }
 .verdict-mark { display: inline-block; margin-right: var(--space-xs); padding: 0 var(--space-xs); border: 1px solid currentColor; border-radius: var(--radius-input); font-size: var(--text-sm); font-weight: 500; vertical-align: middle; }
-.verdict-mark.red { color: var(--sev-critical); }
-.verdict-mark.amber { color: var(--sev-high); }
+.verdict-mark.red { border-color: var(--sev-critical); background: color-mix(in oklch, var(--sev-critical) 14%, var(--color-paper)); color: var(--color-ink); }
+.verdict-mark.amber { border-color: var(--sev-high); background: color-mix(in oklch, var(--sev-high) 14%, var(--color-paper)); color: var(--color-ink); }
 
 .ledger { margin: var(--space-xl) 0 0; border-top: 1px solid var(--color-rule); }
 .ledger > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-rule); }

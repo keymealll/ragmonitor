@@ -1,8 +1,8 @@
-# RagMonitor security scan, run by Promptfoo (https://github.com/promptfoo/promptfoo, MIT).
+# Cyber Tiger security scan, run by Promptfoo (https://github.com/promptfoo/promptfoo, MIT).
 # Sends attack prompts to the live bot over HTTP and checks every answer with deterministic asserts,
 # so it needs no LLM API key. Each test is tagged with its OWASP Top 10 for LLM Applications category.
 #   npx promptfoo@0.125.1 eval -c promptfoo/promptfooconfig.yaml -o promptfoo/results.json
-description: RagMonitor OWASP LLM Top 10 scan
+description: Cyber Tiger OWASP LLM Top 10 scan
 
 providers:
   - id: http

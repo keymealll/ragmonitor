@@ -81,6 +81,20 @@ class DemoFlow(unittest.TestCase):
         att = {"name": "itinerary_injected.txt", "content": (config.ROOT / "samples/attachments/itinerary_injected.txt").read_text()}
         self.assertIn("instruction_in_document", detectors_of(monitor.ask("Check my itinerary", attachment=att)))
 
+    def test_customer_export_leak_is_caught(self):
+        from ragmon import detectors
+        content = (config.ROOT / "samples/bookings_export.csv").read_text(encoding="utf-8")
+        status, findings = kb.add_document("bookings_export.csv", content)
+        self.assertEqual(status, "warning")
+        self.assertIn("personal_data_in_document", {f.detector for f in findings})
+        kb.rebuild()
+        hits = kb.search("What is Aoife Byrne's passport number?")
+        self.assertEqual(hits[0]["doc"], "bookings_export.csv")
+        found = {f.detector for f in detectors.check_answer("Her passport number is SX8056747.", hits)}
+        self.assertTrue({"confidential_value_leak", "personal_data_in_answer"} <= found)
+        store.execute("DELETE FROM documents WHERE name='bookings_export.csv'")
+        kb.rebuild()
+
     def test_api_tokens(self):
         app_id, token = store.create_app("Test site")
         self.assertTrue(token.startswith("rm_live_"))

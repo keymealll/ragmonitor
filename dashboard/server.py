@@ -1,4 +1,4 @@
-"""RagMonitor: the monitored RAG chatbot API, the monitoring API and the dashboard, in one process.
+"""Cyber Tiger: the monitored RAG chatbot API, the monitoring API and the dashboard, in one process.
 
 Run from this folder:  uvicorn server:app --port 8000
 
@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from ragmon import config, detectors, kb, llm, monitor, scans, store
 
-app = FastAPI(title="RagMonitor")
+app = FastAPI(title="Cyber Tiger")
 DASH = config.UI_DIR
 SEV_WEIGHT = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
 # Where each OWASP category is covered. "n/a" = does not apply to this bot (no tools / no third-party models).
@@ -216,7 +216,8 @@ def trace(trace_id: int):
 # ---- knowledge base ---------------------------------------------------------
 
 @app.get("/api/documents")
-def documents():
+def documents(include_backend: bool = False):
+    """The knowledge base. Data sources wired in behind the bot are left out unless asked for (a trace links to them)."""
     counts = {r["doc"]: r for r in store.rows(
         "SELECT doc, COUNT(*) n, MAX(CASE severity WHEN 'CRITICAL' THEN 4 WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2"
         " ELSE 1 END) worst FROM alerts WHERE source='live' AND status='open' AND doc IS NOT NULL GROUP BY doc")}
@@ -224,14 +225,14 @@ def documents():
     for r in store.rows("SELECT retrieved_json FROM traces WHERE source='live'"):
         for doc in {c["doc"] for c in json.loads(r["retrieved_json"] or "[]")}:
             retrievals[doc] = retrievals.get(doc, 0) + 1
-    docs = store.documents()
+    docs = [d for d in store.documents() if include_backend or d.get("source", "kb") == "kb"]
     for d in docs:
         live = counts.get(d["name"], {})
         scan_worst = max((SEV_WEIGHT[f["severity"]] for f in d["findings"]), default=0)
         d["open_alerts"] = live.get("n", 0)
         d["risk"] = max(live.get("worst", 0), scan_worst if d["status"] != "approved" else 0)
         d["retrievals"] = retrievals.get(d["name"], 0)
-        d["chunks"] = kb.chunk(d["name"], d["content"])
+        d["chunks"] = kb.chunk(d["name"], d["content"], d["classification"])
     docs.sort(key=lambda d: (-d["risk"], -d["open_alerts"], d["name"]))
     return docs
 

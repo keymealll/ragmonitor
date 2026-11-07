@@ -1,5 +1,5 @@
 "use strict";
-// RagMonitor dashboard: vanilla JS, hash router, polls the API every 3s.
+// Cyber Tiger dashboard: vanilla JS, hash router, polls the API every 3s.
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const main = $("#main");
@@ -63,7 +63,7 @@ function ago(ts) {
 const clock = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 const sev = (s) => `<span class="sev ${esc(s)}">${esc(SEV_LABEL[s] || s)}</span>`;
 const owaspTag = (code, detector) => code
-  ? `<span class="tag" title="OWASP Top 10 for LLM Applications"><span class="code">${esc(code)}</span><span class="owner-only"> ${esc(OWASP_SHORT[code] || "")}</span></span>`
+  ? `<span class="tag" title="OWASP Top 10 for LLM Applications"><span class="code">${esc(code)}</span><span> ${esc(OWASP_SHORT[code] || "")}</span></span>`
   : `<span class="tag">${detector === "knowledge_gap" ? "Knowledge gap" : "Your rule"}</span>`;
 /** The facet an alert files under: its OWASP code, a knowledge gap, or the owner's rules. */
 const catOf = (a) => a.owasp || (a.detector === "knowledge_gap" ? "GAP" : "POLICY");
@@ -185,9 +185,8 @@ function alertRow(a, { showQuestion = true } = {}) {
     <div>${sev(a.severity)}</div>
     <div>
       <div class="t">${esc(a.title)}</div>
-      ${showQuestion && a.question ? `<div class="d owner-only">Customer asked “${esc(a.question)}”</div>` : ""}
-      ${a.doc ? `<div class="d owner-only">Source: ${esc(a.doc)}</div>` : ""}
-      <div class="d eng-only"><code>${esc(a.detector)}</code> ${esc(a.detail)}</div>
+      ${showQuestion && a.question ? `<div class="d">Customer asked “${esc(a.question)}”</div>` : ""}
+      ${a.doc ? `<div class="d">Source: ${esc(a.doc)}</div>` : ""}
     </div>
     <div class="when">${owaspTag(a.owasp, a.detector)}<div>${ago(a.ts)}</div></div>
   </li>`;
@@ -240,9 +239,8 @@ pages.overview = async () => {
   const latest = open.filter((a) => a.detector !== "knowledge_gap").sort(bySeverity).slice(0, 6);
   main.innerHTML = `
   <div class="page-head">
-    <div><h1 class="owner-only">Is my chatbot safe right now?</h1><h1 class="eng-only">${esc(o.status.bot_id)}</h1>
-      <p class="owner-only">Every customer conversation is checked for leaks, tampered documents and broken rules.</p>
-      <p class="eng-only">Question, retrieved chunks and answer of every request run through the detectors and the policy judge.</p></div>
+    <div><h1>Is my chatbot safe right now?</h1>
+      <p>Every customer conversation is checked for leaks, tampered documents and broken rules.</p></div>
     <div class="seg" role="group" aria-label="Time range">
       <button type="button" data-range="1h" aria-pressed="${range === "1h"}">Past 1 hour</button>
       <button type="button" data-range="24h" aria-pressed="${range === "24h"}">Past 24 hours</button>
@@ -315,8 +313,7 @@ pages.alerts = async () => {
   const owaspKeys = [...Object.keys(OWASP_SHORT), "POLICY", "GAP"].filter((c) => count("owasp", c) || f.owasp.has(c));
   main.innerHTML = `
   <div class="page-head"><div><h1>Alerts</h1>
-    <p class="owner-only">Every problem the monitor found. Open one to see the exact document and sentence behind it.</p>
-    <p class="eng-only">Detector findings per request. Facets filter in the browser; a row opens its trace.</p></div>
+    <p>Every problem the monitor found. Open one to see the exact document and sentence behind it.</p></div>
     <div class="seg" role="group" aria-label="Traffic">
       <button type="button" data-source="live" aria-pressed="${f.source === "live"}">Customer chats</button>
       <button type="button" data-source="scan" aria-pressed="${f.source === "scan"}">Security scan traffic</button></div></div>
@@ -349,12 +346,11 @@ pages.traces = async () => {
   crumbs([`<b>Conversations</b>`]);
   main.innerHTML = `
   <div class="page-head"><div><h1>Conversations</h1>
-    <p class="owner-only">Every question your customers asked, what the chatbot looked up, and what it answered.</p>
-    <p class="eng-only">One trace per request: retrieval, generation and detector spans.</p></div>
+    <p>Every question your customers asked, what the chatbot looked up, and what it answered.</p></div>
     <div class="seg" role="group" aria-label="Traffic">
       <button type="button" data-src="live" aria-pressed="${source === "live"}">Customer chats</button>
       <button type="button" data-src="scan" aria-pressed="${source === "scan"}">Security scan traffic</button></div></div>
-  ${rows.length ? `<div class="table-wrap"><table class="resp"><thead><tr><th>Time</th><th>Status</th><th>Question</th><th>Answer</th><th>Documents used</th><th class="num">Alerts</th><th class="num eng-only">Latency</th><th class="eng-only">Session</th></tr></thead><tbody>
+  ${rows.length ? `<div class="table-wrap"><table class="resp"><thead><tr><th>Time</th><th>Status</th><th>Question</th><th>Answer</th><th>Documents used</th><th class="num">Alerts</th><th class="num">Answered in</th></tr></thead><tbody>
     ${rows.map((t) => `<tr class="click" data-href="#/traces/${t.id}">
       <td class="nowrap muted mono" data-label="">${clock(t.ts)}</td>
       <td data-label="">${t.worst ? sev(SEV_WORD[t.worst]) : sev("OK")}</td>
@@ -362,12 +358,25 @@ pages.traces = async () => {
       <td data-label="" class="dim">${esc(clip(t.answer, 110))}</td>
       <td class="dim" data-label="Documents">${t.docs.map(esc).join(", ") || "None"}</td>
       <td class="num" data-label="Alerts">${t.alerts}</td>
-      <td class="num eng-only" data-label="Latency">${Math.round(t.latency_ms)} ms</td>
-      <td class="eng-only mono muted" data-label="">${esc(t.session)}</td></tr>`).join("")}</tbody></table></div>`
+      <td class="num" data-label="Answered in">${(t.latency_ms / 1000).toFixed(1)} s</td></tr>`).join("")}</tbody></table></div>`
     : `<div class="empty"><b>No conversations yet.</b>Open the customer chat and ask something.</div>`}`;
   main.querySelectorAll("[data-src]").forEach((b) => b.addEventListener("click", () => setQuery(b.dataset.src === "scan" ? "#/traces?source=scan" : "#/traces")));
   bindLinks();
 };
+
+/** An alert title for the story: the story already names the file once, so drop "from 'file'" and "in 'file'". */
+const storyLine = (title) => title.replace(/,? (?:copied )?from '[^']+'/, "").replace(/ in '[^']+'/, "").replace(/ \('[^']+'\)/, "")
+  .replace(/'[^']+' /, "the file ").replace(/^./, (c) => c.toUpperCase());
+const LEAKS = new Set(["canary_leak", "confidential_value_leak", "personal_data_in_answer", "secret_in_answer", "card_number_in_answer", "iban_in_answer"]);
+
+/** Leak alerts become one line that says what was given out; other answer problems keep their own line. */
+function answerLines(alerts) {
+  const leaks = alerts.filter((a) => LEAKS.has(a.detector));
+  const values = [...new Set(leaks.flatMap((a) => (a.evidence || "").split("\n")).filter(Boolean))];
+  const lines = values.length ? [`It gave private data to whoever was asking: <b>${values.map(esc).join(", ")}</b>.`] : [];
+  for (const a of alerts.filter((x) => !LEAKS.has(x.detector))) lines.push(esc(storyLine(a.title)));
+  return [...new Set(lines)].map((l) => `<li>${l}</li>`).join("");
+}
 
 const SPAN_COLOR = (name) => name.startsWith("chat") ? "var(--series-1)" : name.startsWith("rag") ? "var(--series-3)"
   : name.startsWith("llm") ? "var(--series-2)" : name.startsWith("policy") ? "var(--series-5)" : "var(--series-4)";
@@ -387,20 +396,25 @@ pages.trace = async (id, params) => {
   const story = [`<li>A ${t.source === "scan" ? "security scan" : "customer"} asked <b>“${esc(t.question)}”</b></li>`];
   const uploads = t.retrieved.filter((c) => c.classification === "attachment");
   if (uploads.length) story.push(`<li class="${uploads.some((c) => chunkAlerts(c).length) ? "bad" : "warn"}">They attached <b>${esc(uploads.map((c) => c.doc.replace(/^upload: /, "")).join(", "))}</b>, and the chatbot read it like one of your documents.</li>`);
-  story.push(`<li class="${confidential.length ? "warn" : ""}">The chatbot searched your knowledge base and pulled in ${plural(t.retrieved.length - uploads.length, "passage")} from ${docs.map((d) => `<b>${esc(d)}</b>`).join(", ") || "no documents"}.
-    ${confidential.length ? `<br>This included the confidential document <b>${esc(confidential.join(", "))}</b>.` : ""}</li>`);
+  const docLabel = (d, i) => `<b>${esc(d)}</b>${confidential.includes(d) ? (i < docs.length - 1 ? ", which is confidential," : ", which is confidential") : ""}`;
+  story.push(`<li class="${confidential.length ? "warn" : ""}">The chatbot searched your knowledge base and pulled in ${plural(t.retrieved.length - uploads.length, "passage")} from ${docs.map(docLabel).join(" and ") || "no documents"}.</li>`);
   if (flaggedChunks.length) story.push(`<li class="bad">${flaggedChunks.length === 1 ? "One passage" : `${flaggedChunks.length} passages`} contained something suspicious:
-    <ul>${[...new Set(t.alerts.filter(isPoison).map((a) => a.title))].map((x) => `<li>${esc(x)}</li>`).join("")}</ul></li>`);
+    <ul>${[...new Set(t.alerts.filter(isPoison).map((a) => storyLine(a.title)))].map((x) => `<li>${esc(x)}</li>`).join("")}</ul></li>`);
   story.push(`<li class="${answerAlerts.length ? "bad" : ""}">The chatbot, running ${esc(modelOf(t.model))}, answered in ${(t.latency_ms / 1000).toFixed(1)} s.
-    ${answerAlerts.length ? `The answer was a problem:<ul>${answerAlerts.map((a) => `<li>${esc(a.title)}</li>`).join("")}</ul>` : ""}</li>`);
-  story.push(t.alerts.length
-    ? `<li class="bad"><b>What to do:</b> ${worstDoc ? `open <a href="#/kb/${encodeURIComponent(worstDoc)}">${esc(worstDoc)}</a> and remove the highlighted text, or quarantine it so the chatbot can no longer use it.` : "review the answer below and tighten your rules."}</li>`
+    ${answerAlerts.length ? `The answer was a problem:<ul>${answerLines(answerAlerts)}</ul>` : ""}</li>`);
+  const gapsHere = t.alerts.filter((a) => a.detector === "knowledge_gap");
+  if (gapsHere.length) story.push(`<li class="warn">Your documents don't mention <b>${esc(gapsHere.map((a) => a.evidence).join(", "))}</b>.</li>`);
+  const realAlerts = t.alerts.filter((a) => a.detector !== "knowledge_gap");
+  story.push(!realAlerts.length && gapsHere.length
+    ? `<li><b>What to do:</b> nothing is broken. If customers should get an answer about ${esc(gapsHere[0].evidence)}, add it to your <a href="#/kb">knowledge base</a>.</li>`
+    : realAlerts.length
+    ? `<li class="bad"><b>What to do:</b> ${worstDoc ? `<a href="#/kb/${encodeURIComponent(worstDoc)}">open ${docs.length > 1 ? "the file" : "that file"}</a> and quarantine it, so the chatbot can no longer read it, or remove the highlighted text.` : "review the answer below and tighten your rules."}</li>`
     : `<li>No problems found in this conversation.</li>`);
 
   const end = Math.max(1, ...t.spans.map((s) => s.start_ms + s.duration_ms));
   main.innerHTML = `
   <div class="page-head"><div><h1>Conversation #${t.id}</h1>
-    <div class="meta"><span>${new Date(t.ts * 1000).toLocaleString()}</span><span>${plural(t.alerts.length, "alert")}</span><span class="eng-only mono">${esc(t.session)}</span></div></div>
+    <div class="meta"><span>${new Date(t.ts * 1000).toLocaleString()}</span><span>${plural(t.alerts.length, "alert")}</span></div></div>
     ${worstDoc ? `<a class="btn primary" href="#/kb/${encodeURIComponent(worstDoc)}">Open source document</a>` : ""}</div>
   <div class="cols-21">
     <div>
@@ -412,28 +426,28 @@ pages.trace = async (id, params) => {
             <div class="sheet-head"><a href="#/kb/${encodeURIComponent(c.doc)}">${esc(c.doc)}</a>
               <span class="row-actions">${c.classification === "confidential" ? `<span class="tag">Confidential</span>` : c.classification === "attachment" ? `<span class="tag">Customer upload</span>` : ""}
               ${al.length ? sev(SEV_WORD[Math.max(...al.map((a) => 4 - SEV_ORDER.indexOf(a.severity)))]) : ""}
-              <span class="mono muted small eng-only">${esc(c.chunk_id)} score ${c.score.toFixed(3)}</span></span></div>
+              <span class="mono muted small">match ${c.score.toFixed(2)}</span></span></div>
             <pre>${highlight(c.text, needlesOf(al))}</pre></article>`;
         }).join("") || `<div class="empty"><b>Nothing was retrieved.</b>The chatbot answered without your documents.</div>`}</div></section>
-      <section class="region">${regionHead("Chatbot answer", `<span class="eng-only mono">${esc(t.model)}</span>`)}
+      <section class="region">${regionHead("Chatbot answer", esc(modelOf(t.model)))}
         <div class="stock sheet"><p class="answer-text">${highlight(t.answer, needlesOf(answerAlerts))}</p></div></section>
     </div>
     <div>
       <section>${regionHead("Alerts in this conversation")}
         ${t.alerts.length ? `<ul class="list">${t.alerts.slice().sort(bySeverity).map((a) => `
           <li class="${a.id === focus ? "focus" : ""} ${a.status === "resolved" ? "resolved" : ""}" style="grid-template-columns:auto minmax(0,1fr)">
-            <div>${sev(a.severity)}</div><div><div class="t">${esc(a.title)}</div>
-            <div class="d eng-only"><code>${esc(a.detector)}</code> ${esc(a.detail)}</div>
-            <div class="d">${owaspTag(a.owasp, a.detector)} ${a.doc ? `<a href="#/kb/${encodeURIComponent(a.doc)}">${esc(a.doc)}</a>` : ""}</div>
+            <div>${sev(a.severity)}</div><div><div class="t">${esc(storyLine(a.title))}</div>
+            ${a.evidence ? `<div class="d"><code>${esc(a.detector)}</code> ${esc(clip(a.evidence.split("\n").join(", "), 120))}</div>` : `<div class="d"><code>${esc(a.detector)}</code></div>`}
+            <div class="d">${owaspTag(a.owasp, a.detector)}</div>
             <div class="d">${a.status === "open" ? `<button type="button" class="btn small" data-resolve="${a.id}">Resolve</button>` : "Resolved"}</div></div></li>`).join("")}</ul>`
         : `<div class="empty"><b>No alerts.</b>This conversation passed every check.</div>`}</section>
-      <section class="region">${regionHead(`<span class="owner-only">Timeline</span><span class="eng-only">Spans</span>`, `${Math.round(t.latency_ms)} ms total`)}
+      <section class="region">${regionHead("Timeline", `${Math.round(t.latency_ms)} ms total`)}
         <div class="waterfall">${t.spans.map((s) => `
           <div class="wf-row"><span class="nm" title="${esc(JSON.stringify(s.meta))}">${esc(s.name)}</span>
             <div class="wf-track"><div class="wf-bar" style="left:${(s.start_ms / end) * 100}%;width:${Math.max(0.6, (s.duration_ms / end) * 100)}%;background:${SPAN_COLOR(s.name)}"></div></div>
             <span class="ms">${s.duration_ms < 1 ? s.duration_ms.toFixed(2) : Math.round(s.duration_ms)} ms</span></div>`).join("")}
           <div class="legend region" style="margin-top:var(--space-md)"><span><i style="background:var(--series-1)"></i>Request</span><span><i style="background:var(--series-3)"></i>Retrieval</span><span><i style="background:var(--series-2)"></i>LLM</span><span><i style="background:var(--series-4)"></i>Detectors</span><span><i style="background:var(--series-5)"></i>Rules</span></div></div></section>
-      <section class="region eng-only">${regionHead("Details")}
+      <section class="region">${regionHead("Details")}
         <dl class="kv"><dt>trace_id</dt><dd>${t.id}</dd><dt>session</dt><dd>${esc(t.session)}</dd><dt>source</dt><dd>${esc(t.source)}</dd>
         <dt>app</dt><dd>${esc(t.app || "internal (/chat)")}</dd><dt>model</dt><dd>${esc(t.model)}</dd><dt>timestamp</dt><dd>${new Date(t.ts * 1000).toISOString()}</dd></dl></section>
     </div>
@@ -449,16 +463,15 @@ pages.kb = async () => {
   crumbs([`<b>Knowledge base</b>`]);
   main.innerHTML = `
   <div class="page-head"><div><h1>Knowledge base</h1>
-    <p class="owner-only">The documents your chatbot learns from, riskiest first. New documents are scanned before the chatbot can read them.</p>
-    <p class="eng-only">Risk is the worse of open live alerts and the upload scan. Quarantined documents leave the index.</p></div>
+    <p>The documents your chatbot learns from, riskiest first. New documents are scanned before the chatbot can read them.</p></div>
     <div class="row-actions"><button type="button" class="btn" id="scan-all">Scan all documents</button><button type="button" class="btn primary" id="upload">Add document</button></div></div>
-  <div class="table-wrap"><table class="resp"><thead><tr><th>Risk</th><th>Document</th><th>Status</th><th>Access</th><th class="num">Open alerts</th><th class="num">Used in chats</th><th class="num eng-only">Chunks</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+  <div class="table-wrap"><table class="resp"><thead><tr><th>Risk</th><th>Document</th><th>Status</th><th>Access</th><th class="num">Open alerts</th><th class="num">Used in chats</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
   ${docs.map((d) => `<tr class="click" data-href="#/kb/${encodeURIComponent(d.name)}">
     <td data-label="">${d.risk ? sev(SEV_WORD[d.risk]) : sev("OK")}</td>
     <td data-label=""><div class="t">${esc(d.title)}</div><div class="d mono">${esc(d.name)}</div></td>
     <td data-label="">${docStatus(d.status)}${d.findings.length ? `<div class="d">${plural(d.findings.length, "scan finding")}</div>` : ""}</td>
     <td data-label="">${d.classification === "confidential" ? `<span class="tag">Confidential</span>` : `<span class="dim">Public</span>`}</td>
-    <td class="num" data-label="Open alerts">${d.open_alerts}</td><td class="num" data-label="Used in chats">${d.retrievals}</td><td class="num eng-only" data-label="Chunks">${d.chunks.length}</td>
+    <td class="num" data-label="Open alerts">${d.open_alerts}</td><td class="num" data-label="Used in chats">${d.retrievals}</td>
     <td data-label=""><div class="row-actions">${d.status === "quarantined" ? `<button type="button" class="btn small" data-approve="${esc(d.name)}">Restore</button>` : `<button type="button" class="btn small danger" data-quarantine="${esc(d.name)}">Quarantine</button>`}</div></td></tr>`).join("")}
   </tbody></table></div>`;
   bindDocActions();
@@ -494,7 +507,7 @@ function uploadDialog() {
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
     <div class="dialog-body">
       <p class="dim">The document is checked for hidden instructions, invisible characters, tracking links and unknown contacts <b>before</b> the chatbot can read it.</p>
-      <div><label class="field" for="up-file">File (.md or .txt)</label><input type="file" id="up-file" accept=".md,.txt,text/plain,text/markdown"></div>
+      <div><label class="field" for="up-file">File (.md, .txt or .csv)</label><input type="file" id="up-file" accept=".md,.txt,.csv,text/plain,text/markdown,text/csv"></div>
       <div><label class="field" for="up-name">Name</label><input type="text" id="up-name" name="name" autocomplete="off" placeholder="supplier_update.md"></div>
       <div><label class="field" for="up-text">Content</label><textarea id="up-text" name="content" placeholder="Paste text or pick a file"></textarea></div>
       <p class="small" id="up-help" aria-live="polite"></p>
@@ -523,7 +536,7 @@ function uploadDialog() {
           <p class="mono small">${esc(r.name)}</p>
           ${blocked ? `<span class="pressed">Quarantined</span>` : ""}
           <div class="note ${blocked ? "bad" : r.status === "warning" ? "" : "good"}"><b>${blocked ? "Blocked. This document was quarantined before it reached your chatbot." : r.status === "warning" ? "Added, with warnings to review." : "Clean. The chatbot can now use this document."}</b></div>
-          ${r.findings.length ? `<ul class="list">${r.findings.map((f) => `<li style="grid-template-columns:auto minmax(0,1fr)">${sev(f.severity)}<div><div class="t">${esc(f.title)}</div><div class="d">${owaspTag(f.owasp)} <span class="eng-only">${esc(f.detail)}</span></div></div></li>`).join("")}</ul>
+          ${r.findings.length ? `<ul class="list">${r.findings.map((f) => `<li style="grid-template-columns:auto minmax(0,1fr)">${sev(f.severity)}<div><div class="t">${esc(f.title)}</div><div class="d">${owaspTag(f.owasp)} <span class="muted">${esc(f.detail)}</span></div></div></li>`).join("")}</ul>
             <h3>Flagged text</h3><pre class="doc-body">${highlight(content, needlesOf(r.findings))}</pre>` : ""}
           <div class="row-actions"><a class="btn" href="#/kb/${encodeURIComponent(r.name)}" data-close>Open document</a><button type="button" class="btn primary" data-close>Done</button></div></div>`;
       bindClose();
@@ -536,15 +549,15 @@ function uploadDialog() {
 }
 
 pages.doc = async (name) => {
-  const [docs, alerts] = await Promise.all([api("/api/documents"), api("/api/alerts?status=all&limit=500")]);
+  const [docs, alerts] = await Promise.all([api("/api/documents?include_backend=true"), api("/api/alerts?status=all&limit=500")]);
   const d = docs.find((x) => x.name === name);
   if (!d) { main.innerHTML = `<div class="empty"><b>Document not found.</b><a href="#/kb">Back to the knowledge base</a></div>`; return; }
   const related = alerts.filter((a) => a.doc === name);
-  crumbs([`<a href="#/kb">Knowledge base</a>`, `<b>${esc(d.name)}</b>`]);
-  const finding = (f) => `<li style="grid-template-columns:auto minmax(0,1fr)">${sev(f.severity)}<div><div class="t">${esc(f.title)}</div><div class="d">${owaspTag(f.owasp)} <span class="eng-only">${esc(f.detail)}</span></div></div></li>`;
+  crumbs([d.source === "backend" ? `<span>Data source</span>` : `<a href="#/kb">Knowledge base</a>`, `<b>${esc(d.name)}</b>`]);
+  const finding = (f) => `<li style="grid-template-columns:auto minmax(0,1fr)">${sev(f.severity)}<div><div class="t">${esc(f.title)}</div><div class="d">${owaspTag(f.owasp)} <span class="muted">${esc(f.detail)}</span></div></div></li>`;
   main.innerHTML = `
   <div class="page-head"><div><h1>${esc(d.title)}</h1>
-    <div class="meta"><span class="mono">${esc(d.name)}</span>${docStatus(d.status)}<span>${d.classification === "confidential" ? "Confidential" : "Public"}</span><span>Used in ${plural(d.retrievals, "chat")}</span></div></div>
+    <div class="meta"><span class="mono">${esc(d.name)}</span>${docStatus(d.status)}<span>${d.classification === "confidential" ? "Confidential" : "Public"}</span><span>Used in ${plural(d.retrievals, "chat")}</span>${d.source === "backend" ? "<span>Connected behind the chatbot, not in your knowledge base</span>" : ""}</div></div>
     <div class="row-actions">${d.status === "quarantined" ? `<button type="button" class="btn" data-approve="${esc(d.name)}">Restore to chatbot</button>` : `<button type="button" class="btn danger" data-quarantine="${esc(d.name)}">Quarantine document</button>`}</div></div>
   <div class="cols-21">
     <article class="stock sheet">
@@ -567,8 +580,7 @@ pages.scans = async () => {
   crumbs([`<b>Security scans</b>`, `<span>Promptfoo</span>`]);
   const running = s.running;
   const head = `<div class="page-head"><div><h1>Security scans</h1>
-    <p class="owner-only">Like a mystery shopper: known attack questions go to your chatbot, and every answer is checked.</p>
-    <p class="eng-only">Runs <code>promptfoo eval</code> (promptfoo/promptfooconfig.yaml) against <code>POST /chat</code> with <code>source=scan</code>; deterministic asserts tagged by OWASP category.</p></div>
+    <p>Like a mystery shopper: known attack questions go to your chatbot, and every answer is checked.</p></div>
     <div class="row-actions">${running ? `<span class="chip" role="status"><span class="spin" aria-hidden="true"></span>&nbsp;Scan running</span>` : ""}<button type="button" class="btn primary" id="run-scan" ${running ? "disabled aria-busy=\"true\"" : ""}>Run scan now</button></div></div>`;
   if (!s.results) {
     main.innerHTML = head + `<div class="empty"><b>No scan results yet.</b>${s.last_run?.status === "failed" ? `The last run failed: <code>${esc(s.last_run.log)}</code>` : "Run a scan to test your chatbot."}</div>`;
@@ -591,14 +603,14 @@ pages.scans = async () => {
     </div>
     <div class="region">
       <section>${regionHead("Test results", "open a row to see the conversation")}
-        <div class="table-wrap"><table class="resp"><thead><tr><th>Result</th><th>Category</th><th>Attack</th><th>Chatbot answer</th><th class="eng-only">Failed checks</th></tr></thead><tbody>
+        <div class="table-wrap"><table class="resp"><thead><tr><th>Result</th><th>Category</th><th>Attack</th><th>Chatbot answer</th><th>Failed checks</th></tr></thead><tbody>
         ${s.results.slice().sort((a, b) => a.passed - b.passed || a.owasp.localeCompare(b.owasp)).map((r) => `
           <tr class="${r.trace_id ? "click" : ""}" ${r.trace_id ? `data-href="#/traces/${r.trace_id}"` : ""}>
             <td data-label="">${r.passed ? sev("PASS") : sev("FAIL")}</td>
             <td data-label="">${owaspTag(r.owasp === "OTHER" ? null : r.owasp)}</td>
             <td data-label=""><div class="t">${esc(r.description)}</div><div class="d">“${esc(r.prompt)}”</div></td>
             <td class="dim" data-label="">${esc(clip(r.output, 150))}</td>
-            <td class="eng-only mono" data-label="">${r.failed_checks.map(esc).join("<br>")}</td></tr>`).join("")}
+            <td class="mono" data-label="Failed checks">${r.failed_checks.map(esc).join("<br>")}</td></tr>`).join("")}
         </tbody></table></div></section>
     </div>`;
   }
@@ -614,7 +626,7 @@ pages.owasp = async () => {
   crumbs([`<b>OWASP Top 10</b>`, `<span>risk map</span>`]);
   main.innerHTML = `
   <div class="page-head"><div><h1>OWASP Top 10 for LLM applications</h1>
-    <p>The industry list of the ten biggest risks for AI chatbots, and how RagMonitor watches each one. Detection is heuristic: it gives visibility, not a guarantee.</p></div></div>
+    <p>The industry list of the ten biggest risks for AI chatbots, and how Cyber Tiger watches each one. Detection is heuristic: it gives visibility, not a guarantee.</p></div></div>
   <div class="table-wrap"><table class="resp"><thead><tr><th>Risk</th><th>What it means for you</th><th>How we watch it</th><th>Open alerts</th><th>Last scan</th></tr></thead><tbody>
   ${ow.map((c) => `<tr class="click" data-owasp="${c.code}">
     <td class="nowrap" data-label=""><span class="mono">${c.code}</span> <b>${esc(c.name)}</b></td>
@@ -739,19 +751,12 @@ async function updateBadge() {
   $("#chat-site-link").href = o.status.chat_site_url;
 }
 
-function setView(v) {
-  document.body.classList.toggle("owner", v === "owner");
-  document.body.classList.toggle("engineer", v === "engineer");
-  document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === v));
-  store.set("ragmon-view", v);
-}
 
 function setTheme(t) {
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
   store.set("ragmon-theme", t || "");
 }
 
-document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 $("#theme-btn").addEventListener("click", () => {
   const dark = document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -763,7 +768,6 @@ $("#reset-btn").addEventListener("click", async () => {
 });
 $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
 
-setView(store.get("ragmon-view", "owner"));
 setTheme(store.get("ragmon-theme", "") || null);
 addEventListener("hashchange", () => { hideTip(); render(); main.focus(); scrollTo(0, 0); });
 setInterval(() => {

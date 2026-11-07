@@ -91,6 +91,10 @@ def init(reset: bool = False):
         # Databases made before connected apps existed get the column added in place.
         if "app" not in {r["name"] for r in conn.execute("PRAGMA table_info(traces)")}:
             conn.execute("ALTER TABLE traces ADD COLUMN app TEXT")
+        # "kb": uploaded to the knowledge base screen. "backend": a data source wired in behind the chatbot
+        # (a bookings system export) that the bot reads but the knowledge base screen does not list.
+        if "source" not in {r["name"] for r in conn.execute("PRAGMA table_info(documents)")}:
+            conn.execute("ALTER TABLE documents ADD COLUMN source TEXT NOT NULL DEFAULT 'kb'")
         if not conn.execute("SELECT 1 FROM policies LIMIT 1").fetchone():
             conn.executemany("INSERT INTO policies(text) VALUES (?)", [(p,) for p in config.DEFAULT_POLICIES])
 
@@ -151,17 +155,17 @@ def save_alert(trace_id, source, f, ts=None):
 
 # ---- documents --------------------------------------------------------------
 
-def upsert_document(name, title, classification, status, content, findings=None, scanned=False):
+def upsert_document(name, title, classification, status, content, findings=None, scanned=False, source="kb"):
     now = time.time()
     with db() as conn:
         conn.execute(
-            "INSERT INTO documents(name, title, classification, status, added_ts, scanned_ts, content, findings_json)"
-            " VALUES (?,?,?,?,?,?,?,?)"
+            "INSERT INTO documents(name, title, classification, status, added_ts, scanned_ts, content, findings_json, source)"
+            " VALUES (?,?,?,?,?,?,?,?,?)"
             " ON CONFLICT(name) DO UPDATE SET title=excluded.title, classification=excluded.classification,"
             " status=excluded.status, scanned_ts=excluded.scanned_ts, content=excluded.content,"
-            " findings_json=excluded.findings_json",
+            " findings_json=excluded.findings_json, source=excluded.source",
             (name, title, classification, status, now, now if scanned else None, content,
-             json.dumps(findings or [])),
+             json.dumps(findings or []), source),
         )
 
 

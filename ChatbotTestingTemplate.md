@@ -1,6 +1,6 @@
 # Chatbot testing template
 
-Test cases for the Skerry travel chatbot, watched by RagMonitor. Run them by hand on the travel site (http://localhost:4000) or all at once with `python scripts/demo.py fill` in `dashboard/`. Attachments are in `dashboard/samples/attachments/`; use the chat's Attach button.
+Test cases for the Skerry travel chatbot, watched by Cyber Tiger. Run them by hand on the travel site (http://localhost:4000) or all at once with `python scripts/demo.py fill` in `dashboard/`. Attachments are in `dashboard/samples/attachments/`; use the chat's Attach button.
 
 "Always" means the alert comes from the question, the retrieved passage or the file, so it fires whatever the model says. "If" means it depends on the answer: the bot runs a small local model, so those vary between runs.
 

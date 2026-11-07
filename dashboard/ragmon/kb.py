@@ -3,6 +3,8 @@
 Lexical retrieval keeps the demo deterministic and offline (no embedding model download).
 Swapping in Chroma only means replacing `search`.
 """
+import csv
+import io
 import math
 import re
 import threading
@@ -30,15 +32,29 @@ def parse(content):
     return meta, body
 
 
-def chunk(name, content):
-    """One chunk per `##` section (plus any preamble)."""
+def _meta(name, content):
+    """Frontmatter for markdown; for a CSV export the file name decides (confidential, private or internal in it)."""
+    if name.lower().endswith(".csv"):
+        secret = re.search(r"confidential|private|internal", name, re.I)
+        return {"title": name.rsplit(".", 1)[0].replace("_", " ").capitalize(), "classification": "confidential" if secret else "public"}
+    return parse(content)[0]
+
+
+def chunk(name, content, classification=None):
+    """One chunk per `##` section (plus any preamble); one chunk per row for a CSV export.
+    `classification` is the stored one, which the upload scan may have raised to confidential."""
+    if name.lower().endswith(".csv"):
+        cls = classification or _meta(name, content)["classification"]
+        rows = list(csv.DictReader(io.StringIO(content)))
+        return [{"doc": name, "chunk_id": f"{name}#{i}", "classification": cls,
+                 "text": "Record " + "; ".join(f"{k.replace('_', ' ')}: {v}" for k, v in r.items())} for i, r in enumerate(rows)]
     meta, body = parse(content)
     sections = [s.strip() for s in re.split(r"\n(?=## )", body) if s.strip()]
     if len(sections) > 1 and all(l.startswith("#") for l in sections[0].splitlines()):
         sections[1] = sections[0] + "\n" + sections[1]  # keep the doc title with its first section
         sections.pop(0)
     return [{"doc": name, "chunk_id": f"{name}#{i}", "text": s,
-             "classification": meta.get("classification", "public")} for i, s in enumerate(sections)]
+             "classification": classification or meta.get("classification", "public")} for i, s in enumerate(sections)]
 
 
 def tokens(text):
@@ -66,7 +82,7 @@ def rebuild():
     chunks = []
     for d in store.documents():
         if d["status"] != "quarantined":
-            chunks += chunk(d["name"], d["content"])
+            chunks += chunk(d["name"], d["content"], d["classification"])
     df = Counter(t for c in chunks for t in set(tokens(c["text"])))
     n = len(chunks) or 1
     idf = {t: math.log((n + 1) / (k + 0.5)) for t, k in df.items()}
@@ -101,14 +117,17 @@ def load_folder(scan=False):
     rebuild()
 
 
-def add_document(name, content, scan=True):
+def add_document(name, content, scan=True, source="kb"):
     """Add or replace a document. With scan=True, risky docs are quarantined before they reach the bot."""
-    meta, _ = parse(content)
+    meta = _meta(name, content)
     findings, status = [], "unscanned"
     if scan:
         findings = detectors.scan_document(name, content, chunk(name, content))
         sev = detectors.worst(findings)
         status = "quarantined" if sev >= detectors.SEVERITY_RANK["HIGH"] else "warning" if sev else "clean"
+        # A document holding people's personal data is confidential by what it contains, whatever its name says.
+        if any(f.detector == "personal_data_in_document" for f in findings):
+            meta["classification"] = "confidential"
     store.upsert_document(name, meta.get("title", name), meta.get("classification", "public"), status,
-                          content, [f.to_dict() for f in findings], scanned=scan)
+                          content, [f.to_dict() for f in findings], scanned=scan, source=source)
     return status, findings

@@ -75,7 +75,12 @@ SECRET_PATTERNS = {
 }
 # Distinctive values in a confidential document: money, percentages, full names. Canaries only catch copy-paste;
 # a model that rewrites "CEO salary: €156,000, ref CANARY-7f3a" as "€156,000 per year" still leaks the figure.
-SENSITIVE_VALUE_RE = re.compile(r"[€$£]\s?\d[\d,.]*\d|\b\d{1,3}(?:[.,]\d+)?\s?%|\b[A-Z][a-z]{2,} [A-Z][a-z]{2,}\b")
+SENSITIVE_VALUE_RE = re.compile(
+    r"[€$£]\s?\d[\d,.]*\d|\b\d{1,3}(?:[.,]\d+)?\s?%|\b[A-Z][a-zà-ÿ]{2,} (?:[A-Z]'|Mc)?[A-Z][a-zà-ÿ]{2,}\b"  # money, percent, names (O'Brien)
+    r"|\b\d{4}-\d{2}-\d{2}\b|\b[A-Z]{2}\d{7}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+\d{3}[\d ]{8,}\d")       # dates, passports, emails, phones
+PASSPORT_ANSWER_RE = re.compile(r"\b([A-Z]{2}\s?\d{7})\b")
+DOB_RE = re.compile(r"(?:born|birth|dob|d\.o\.b\.?)[^\n.]{0,24}?(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2} [A-Za-z]+,? \d{4}|[A-Za-z]+ \d{1,2},? \d{4})",
+                    re.IGNORECASE)
 CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
 IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}[ ]?(?:[A-Z0-9]{4}[ ]?){3,7}[A-Z0-9]{1,4}\b")
 
@@ -156,11 +161,19 @@ def scan_text(text, *, doc, chunk_id, owasp_injection="LLM01", target="chunk"):
 
 
 def scan_document(name, content, chunks):
-    """Upload-time scan of a whole document before it enters the knowledge base (OWASP LLM04)."""
+    """Upload-time scan of a whole document before it enters the knowledge base (OWASP LLM04, and LLM02 for personal data)."""
     findings = []
+    people = len(set(re.findall(r"\b[A-Z]{2}\d{7}\b", content))) + len(set(re.findall(r"\b(?:19|20)\d{2}-\d{2}-\d{2}\b", content)))
+    if people >= 3:
+        findings.append(Finding(
+            "personal_data_in_document", "MEDIUM", "LLM02",
+            f"'{name}' holds personal data (passport numbers or dates of birth) that the chatbot could repeat",
+            f"{people} passport numbers and dates of birth found in {name}", "", "document", name, None))
     for chunk in chunks:
-        findings += scan_text(chunk["text"], doc=name, chunk_id=chunk["chunk_id"],
-                              owasp_injection="LLM04", target="document")
+        found = scan_text(chunk["text"], doc=name, chunk_id=chunk["chunk_id"], owasp_injection="LLM04", target="document")
+        if chunk.get("classification") == "confidential":  # customer emails in a data export are records, not phishing contacts
+            found = [f for f in found if f.detector != "unknown_email_in_document"]
+        findings += found
     return _dedupe(findings)
 
 
@@ -191,7 +204,10 @@ def check_question(question, session, recent_count):
 def check_retrieval(retrieved):
     findings, confidential_seen = [], set()
     for c in retrieved:
-        findings += scan_text(c["text"], doc=c["doc"], chunk_id=c["chunk_id"])
+        found = scan_text(c["text"], doc=c["doc"], chunk_id=c["chunk_id"])
+        if c.get("classification") == "confidential":
+            found = [f for f in found if f.detector != "unknown_email_in_document"]
+        findings += found
         if c.get("classification") == "attachment":
             findings += check_attachment_data(c)
         if c.get("classification") == "confidential" and c["doc"] not in confidential_seen:
@@ -250,6 +266,15 @@ def check_answer(answer, retrieved):
                 "secret_in_answer", "CRITICAL", "LLM02",
                 f"The chatbot revealed a secret key ({label})",
                 f"{label} pattern in answer", m.group(0), "answer", doc, chunk_id))
+
+    for label, rx in (("passport number", PASSPORT_ANSWER_RE), ("date of birth", DOB_RE)):
+        hits = sorted({m.group(1) for m in rx.finditer(answer)})
+        if hits:
+            doc, chunk_id = _source_of(hits[0], retrieved)
+            findings.append(Finding(
+                "personal_data_in_answer", "HIGH", "LLM02",
+                f"The chatbot shared a {label} in a chat" + (f", copied from '{doc}'" if doc else ""),
+                f"{label} pattern in answer: {', '.join(hits)}", "\n".join(hits), "answer", doc, chunk_id))
 
     for m in CARD_RE.finditer(answer):
         digits = re.sub(r"\D", "", m.group(0))

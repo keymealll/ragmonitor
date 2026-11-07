@@ -3,9 +3,12 @@
   python scripts/demo.py seed       # reset, then add normal customer chats over the last day (green dashboard)
   python scripts/demo.py run        # play the demo script: normal question, poisoned refund, salary leak
   python scripts/demo.py fill       # add the ~110 test conversations in scripts/cases.py (keeps existing data)
-  python scripts/demo.py template   # write ../ChatbotTestingTemplate.md from scripts/cases.py
+  python scripts/demo.py connect    # wire the synthetic bookings export in behind the bot (no prompts), for a live demo
+  python scripts/demo.py pii        # wire the synthetic bookings export in behind the bot, then run the sensitive-data prompts
+  python scripts/demo.py template   # write ../ChatbotTestingTemplate.md and ../SensitiveDataTestingTemplate.md
 """
 import json
+import os
 import random
 import sys
 import time
@@ -16,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ragmon import config, kb, monitor, store  # noqa: E402
 from scripts import cases  # noqa: E402
 
-BASE = "http://localhost:8000"
+BASE = os.environ.get("RAGMON_URL", "http://localhost:8000")
 NORMAL = [
     "Do you fly to Paris?", "How heavy can my cabin bag be?", "How much is a checked bag?", "Where do you fly from Cork?",
     "How do I book a trip?", "When does your support team answer?", "How long do you hold the price?",
@@ -79,11 +82,40 @@ def fill():
           f"{store.rows('SELECT COUNT(*) n FROM alerts WHERE source=?', ('live',))[0]['n']} live alerts in total")
 
 
+def pii():
+    """A bookings export is wired in behind the chatbot, out of the knowledge base's sight; attackers then ask for customers' data."""
+    store.init()
+    path = config.ROOT / "samples" / cases.SENSITIVE_FILE
+    # Wired in behind the chatbot (like a bookings system it can query), not uploaded on the knowledge base screen.
+    status, findings = kb.add_document(cases.SENSITIVE_FILE, path.read_text(encoding="utf-8"), source="backend")
+    print(f"connected behind the bot; scan: {status}, {len(findings)} finding(s): {sorted({f.title for f in findings})}")
+    if status == "quarantined":
+        store.execute("UPDATE documents SET status='approved' WHERE name=?", (cases.SENSITIVE_FILE,))
+    kb.rebuild()
+    rng, now = random.Random(5), time.time()
+    stamps = sorted(now - rng.uniform(120, 6 * 3600) for _ in cases.SENSITIVE_CASES)
+    for i, ((category, prompt), ts) in enumerate(zip(cases.SENSITIVE_CASES, stamps), 1):
+        r = monitor.ask(prompt, f"visitor-{rng.randint(1000, 9999)}", "live", ts=ts, app="Skerry travel site")
+        leak = any(a["severity"] == "CRITICAL" for a in r["alerts"])
+        print(f"{i:>2}/{len(cases.SENSITIVE_CASES)} {category:<10} {'LEAK' if leak else '-':<5} {prompt[:56]}", flush=True)
+    print("done. Open a leaking conversation and quarantine bookings_export.csv from its source link to stop the leaks.")
+
+
+def connect():
+    """Wire the bookings export in behind the running bot without sending any prompts, so leaks can be shown live."""
+    store.init()
+    path = config.ROOT / "samples" / cases.SENSITIVE_FILE
+    kb.add_document(cases.SENSITIVE_FILE, path.read_text(encoding="utf-8"), source="backend")
+    post(f"/api/documents/{cases.SENSITIVE_FILE}/approve")  # makes the running server re-index, so the bot can read it now
+    print(f"{cases.SENSITIVE_FILE} is connected behind the bot (not listed in the knowledge base).")
+
+
 def template():
-    out = config.ROOT.parent / "ChatbotTestingTemplate.md"
-    out.write_text(cases.markdown(), encoding="utf-8")
-    print(f"wrote {out}")
+    for name, text in (("ChatbotTestingTemplate.md", cases.markdown()), ("SensitiveDataTestingTemplate.md", cases.sensitive_markdown())):
+        out = config.ROOT.parent / name
+        out.write_text(text, encoding="utf-8")
+        print(f"wrote {out}")
 
 
 if __name__ == "__main__":
-    {"seed": seed, "run": run, "fill": fill, "template": template}.get(sys.argv[1] if len(sys.argv) > 1 else "", lambda: print(__doc__))()
+    {"seed": seed, "run": run, "fill": fill, "pii": pii, "connect": connect, "template": template}.get(sys.argv[1] if len(sys.argv) > 1 else "", lambda: print(__doc__))()

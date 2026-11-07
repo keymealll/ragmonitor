@@ -1,9 +1,9 @@
-"""Skerry travel site: serves the page and passes its chat to RagMonitor with the site's API token.
+"""Skerry travel site: serves the page and passes its chat to Cyber Tiger with the site's API token.
 
 Run from this folder:  uvicorn server:app --port 4000
 
 The token lives in website-chatbot/.env on this server and is sent as a Bearer header to
-RagMonitor's POST /v1/chat. The browser only ever talks to this server, so it never sees the token.
+Cyber Tiger's POST /v1/chat. The browser only ever talks to this server, so it never sees the token.
 """
 import json
 import os
@@ -69,7 +69,7 @@ def chat(body: ChatIn):
             data = json.loads(r.read())
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            raise HTTPException(503, "The assistant's API token was rejected. Create a new one in RagMonitor.")
+            raise HTTPException(503, "The assistant's API token was rejected. Create a new one in Cyber Tiger.")
         raise HTTPException(502, "The assistant could not answer that. Try again in a moment.")
     except OSError:
         raise HTTPException(502, "The assistant is offline right now. Email support@skerry.ie instead.")
