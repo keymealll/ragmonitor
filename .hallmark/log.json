@@ -1,0 +1,28 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none (app screen)",
+  "nav": "kept shell: sidebar of seven destinations over a top bar",
+  "footer": "none (app screen)",
+  "imagery": "product built: stationery records",
+  "photos": [],
+  "entry": "overview leads with the latest incident on paper",
+  "fingerprint": "app/coral/incident-paper/figures-row/tables",
+  "sections": [
+   "verdict and incident",
+   "figures row",
+   "two charts",
+   "alerts list and riskiest documents",
+   "OWASP table"
+  ],
+  "signature": "the incident on paper: customer card, poisoned passage on cotton, answer",
+  "waived": [],
+  "prompt": "security monitoring dashboard for small business AI chatbots",
+  "date": "2026-11-07"
+ }
+]
