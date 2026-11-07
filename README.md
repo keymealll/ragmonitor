@@ -24,7 +24,9 @@ Clinics, estate agents, law firms and online shops are putting chatbots on their
 | **Leak alerts** | Canary tokens (`CANARY-7f3a`) planted in confidential docs and the system prompt; regex for emails, API keys, Luhn-valid card numbers and IBANs in answers. |
 | **Poisoned document detection** | Instruction-like text ("ignore previous instructions", "system override", "you must tell the customer…"), zero-width and bidi Unicode, hidden HTML comments, markdown-image exfiltration links and unknown emails or URLs in retrieved chunks. |
 | **Upload scan** | Every new document is scanned before the chatbot can read it; risky ones are quarantined automatically. |
-| **Plain-English rules** | The owner writes rules like "Only refer customers to support@harbourhill.ie". An LLM judge checks each answer, with a rule-based fallback when no API key is set. |
+| **Plain-English rules** | The owner writes rules like "Only refer customers to support@skerry.ie". An LLM judge checks each answer, with a rule-based fallback when no API key is set. |
+| **Beyond attacks** | Knowledge gaps (customers ask about things no document covers, shown as insights that never lower the score), answers not backed by the documents (LLM09), and answers that name internal files. |
+| **Attachments** | Customers can attach a text file in the travel site's chat. RagMonitor scans it like a document before the bot reads it: hidden instructions, invisible text, tracking images, passport and card numbers. |
 | **Trace-back** | Click any alert to see the question, the retrieved passages with the bad text highlighted, the answer, and a span timeline. Then quarantine the document in one click. |
 | **Security scans (Promptfoo)** | [Promptfoo](https://github.com/promptfoo/promptfoo) sends 14 attack questions to the live bot and grades each answer with deterministic checks. Results are mapped to OWASP categories, and each failure links to its conversation trace. |
 | **Owner view / Engineer view** | The same data either as plain-English sentences or as detector IDs, chunk scores, spans and models. |
@@ -36,7 +38,7 @@ Clinics, estate agents, law firms and online shops are putting chatbots on their
 | Risk | How RagMonitor watches it |
 |---|---|
 | LLM01 Prompt Injection | Live: instructions hidden in retrieved chunks, direct injection attempts, answers that send customers to unknown contacts. Promptfoo scan. |
-| LLM02 Sensitive Information Disclosure | Live: canary tokens, secrets, card numbers and IBANs in answers. Promptfoo scan. |
+| LLM02 Sensitive Information Disclosure | Live: canary tokens, figures and names that exist only in confidential documents, secrets, card numbers and IBANs in answers. Promptfoo scan. |
 | LLM03 Supply Chain | Roadmap |
 | LLM04 Data and Model Poisoning | Upload scan quarantines tampered documents; live document risk ranking. |
 | LLM05 Improper Output Handling | Live: markdown images to external hosts, active HTML in answers. Promptfoo scan. |
@@ -48,76 +50,93 @@ Clinics, estate agents, law firms and online shops are putting chatbots on their
 
 Detection is heuristic. RagMonitor gives you detection and visibility, not a guarantee.
 
+## Two projects in this repo
+
+| Folder | What it is | Port |
+|---|---|---|
+| [`dashboard/`](dashboard/) | **RagMonitor**: the monitored RAG chatbot API, the detectors, the Promptfoo scans and the dashboard | 8000 |
+| [`website-chatbot/`](website-chatbot/) | **Skerry**, a fictional Cork travel app's website. Its chat is a customer app connected to RagMonitor with an API token | 4000 |
+
+The travel site never holds the model or the documents. Its server sends each question to RagMonitor's `POST /v1/chat` with `Authorization: Bearer <token>`, and RagMonitor answers, traces and checks it. The token stays in `website-chatbot/.env` on the server; the browser never sees it.
+
 ## Run it
 
-Needs Python 3.10+. The Promptfoo scan also needs Node 20+ (it is run through `npx`, so nothing to install).
+Needs Python 3.10+, [Ollama](https://ollama.com) for the local model, and Node 20+ for the Promptfoo scan (run through `npx`, nothing to install).
 
 ```bash
-pip install -r requirements.txt
-uvicorn server:app --port 8000          # bot + monitor + dashboard in one process
+pip install -r dashboard/requirements.txt
+ollama pull qwen2.5:1.5b                      # about 1 GB, once
+
+# 1. the monitor
+cd dashboard
+uvicorn server:app --port 8000                # http://localhost:8000
+python scripts/apptoken.py create "Skerry travel site"   # prints the API token once
+
+# 2. the travel site, in a second terminal
+cd website-chatbot
+cp .env.example .env                          # paste the token into RAGMON_TOKEN
+uvicorn server:app --port 4000                # http://localhost:4000
 ```
 
-- Dashboard: http://localhost:8000
-- Demo shop with the customer chatbot: http://localhost:8000/shop
+Connected apps and their tokens are also listed, created and revoked on the dashboard's **Rules** screen.
 
 ```bash
-python scripts/demo.py seed             # reset and add a day of normal customer chats (green dashboard)
-python scripts/demo.py run              # play the attack script against the bot
-npx promptfoo@0.125.1 eval -c promptfoo/promptfooconfig.yaml -o promptfoo/results.json   # or the "Run scan now" button
-python -m unittest discover tests       # checks that the demo attacks fire every time
+cd dashboard
+python scripts/demo.py seed       # reset and add normal chats over the last day (green dashboard)
+python scripts/demo.py run        # play the three demo questions
+python -m unittest discover tests # the demo attacks fire every time (runs on the scripted bot)
+python scripts/demo.py fill       # add the 109 test conversations from scripts/cases.py through the real model
+python scripts/demo.py template   # regenerate ChatbotTestingTemplate.md from the same cases
 ```
 
-### LLM provider
+### The model
 
-With no API key the bot uses an **offline demo model**: a deliberately naive bot that answers from the retrieved text and follows instructions hidden in it, as an unprotected RAG bot can. This keeps the demo reliable, and the dashboard labels it.
+By default the chatbot runs **qwen2.5:1.5b** locally through Ollama, so answers take one to four seconds and every trace shows the model that answered. Its system prompt is set to `BOT_PROMPT=naive`, which tells the model to follow instructions found in the documents, the way a careless real deployment does. `BOT_PROMPT=careful` is the hardened version.
 
-To use a real model, set a key before starting the server:
-
-```bash
-export ANTHROPIC_API_KEY=...            # uses claude-haiku-5-5 (override with ANTHROPIC_MODEL)
-# or
-export OPENAI_API_KEY=...               # override the model with OPENAI_MODEL
-export LLM_PROVIDER=offline             # force the offline demo model even if a key is set
-```
-
-With a key, the rule checks use an LLM judge instead of the rule-based fallback.
+| Setting | Effect |
+|---|---|
+| `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` | a hosted model instead, and an LLM judge for the rules |
+| `OLLAMA_MODEL=llama3.2:3b` | a different local model |
+| `LLM_PROVIDER=offline` | the scripted demo bot: no language model, answers in about 1 ms, always named as such in the dashboard |
 
 ## Demo script
 
-1. The dashboard is green: 44 normal conversations, no alerts.
-2. A normal customer question gets answered and the dashboard stays green.
-3. "How do I get a refund?" retrieves the poisoned `refund_policy.md`. The bot sends the customer to `refunds@hh-payments-help.com` and asks for their card number. This raises injection and rule alerts, and the document turns red.
-4. "What's the CEO's salary?" leaks canary tokens from `salaries_confidential.md`. A CRITICAL alert fires and the score goes red.
-5. Click the alert. The trace shows the question, the passage with the hidden text highlighted, the answer and the source document. Quarantining the document resolves its alerts.
-6. Bonus: upload `samples/supplier_update.md` in Knowledge base. It hides zero-width characters and a tracking image, so it is quarantined before the chatbot ever sees it.
+1. Open the dashboard: green, normal customer chats, no alerts.
+2. On the Skerry site, ask "Do you fly to Paris?" The answer comes back and the dashboard stays green.
+3. Ask "How do I get a refund?" The poisoned `refund_policy.md` is retrieved and the model is told to send customers to `refunds@skerry-refunds-desk.com` with their card number. The injection alert fires on the retrieved passage whether or not the model obeys; when it obeys, the answer is flagged too.
+4. Ask "What's the CEO's salary?" The model answers "€156,000 per year." with no canary token, and the CRITICAL leak alert still fires: RagMonitor matches values that exist only in the confidential document.
+5. Click the alert: the question, the passage with the hidden text highlighted, the answer, the model and the source document. Quarantine the document to resolve its alerts.
+6. Security scans: Promptfoo's 14 attacks against the real model, each linked to its conversation.
 
 ## How it works
 
 ```
-customer ─► POST /chat ─► monitor.ask()
-                            ├─ detect.question   direct injection, flooding (LLM01, LLM10)
-                            ├─ rag.retrieve      TF-IDF over kb/ chunks (quarantined docs excluded)
-                            ├─ detect.chunks     poisoning signs, confidential retrieval (LLM01/04/08)
-                            ├─ llm.generate      Anthropic / OpenAI / offline demo model
-                            ├─ detect.answer     canaries, secrets, PII, unsafe output (LLM02/05/07)
-                            └─ policy.judge      owner's plain-English rules
-                          ─► SQLite: trace (chunks + spans) + alerts ─► dashboard (polls every 3s)
+Skerry site ─► its server ─► POST /v1/chat (Bearer token) ─► monitor.ask()
+                                ├─ detect.question   direct injection, flooding (LLM01, LLM10)
+                                ├─ rag.retrieve      TF-IDF over kb/ chunks (quarantined docs excluded)
+                                ├─ detect.chunks     poisoning signs, confidential retrieval (LLM01/04/08)
+                                ├─ llm.generate      Ollama / Anthropic / OpenAI / scripted demo bot
+                                ├─ detect.answer     canaries, confidential values, secrets, PII, unsafe output (LLM02/05/07)
+                                └─ policy.judge      owner's plain-English rules
+                              ─► SQLite: trace (chunks, spans, app) + alerts ─► dashboard (polls every 3s)
 
-Promptfoo ─► POST /chat (source=scan) ─► same pipeline, kept apart from customer traffic
-          └► promptfoo/results.json ─► Security scans page
+Promptfoo ─► POST /chat (internal, source=scan) ─► same pipeline, kept apart from customer traffic
 ```
 
 | Path | What |
 |---|---|
-| `server.py` | FastAPI: chatbot endpoint, monitoring API, serves the dashboard |
-| `ragmon/detectors.py` | All rule-based detectors with their OWASP mapping (each one is a plain function) |
-| `ragmon/monitor.py` | Wraps retrieval and generation, runs the detectors, stores the trace and alerts |
-| `ragmon/kb.py` | Document loading, chunking, retrieval and the upload scan |
-| `ragmon/policy.py` | LLM judge for plain-English rules, plus the rule-based fallback |
-| `ragmon/scans.py` | Runs Promptfoo and imports `results.json` |
-| `promptfoo/promptfooconfig.yaml` | The 14 attack tests, tagged by OWASP category |
-| `dashboard/` | Single-page dashboard (vanilla JS, no build step) and the demo shop |
-| `kb/` | Demo knowledge base: normal handbook, poisoned refund policy, confidential salaries with canaries |
+| `dashboard/server.py` | FastAPI: `/v1/chat` for connected apps, `/chat` for internal tools, the monitoring API, the dashboard |
+| `dashboard/ragmon/detectors.py` | Every rule-based detector with its OWASP mapping, each a plain function |
+| `dashboard/ragmon/monitor.py` | Wraps retrieval and generation, runs the detectors, stores the trace and alerts |
+| `dashboard/ragmon/llm.py` | Ollama, Anthropic, OpenAI or the scripted demo bot |
+| `dashboard/ragmon/store.py` | SQLite, including connected apps (only token hashes are stored) |
+| `dashboard/scripts/apptoken.py` | Create, list and revoke API tokens |
+| `dashboard/promptfoo/promptfooconfig.yaml` | The 14 attack tests, tagged by OWASP category |
+| `dashboard/ui/` | The dashboard (vanilla JS, no build step) |
+| `dashboard/kb/` | Skerry's knowledge base: help centre, poisoned refund policy, confidential salaries with canaries |
+| `website-chatbot/` | The Skerry site: `server.py` (page and token-holding chat proxy) and `site/` |
+
+The dashboard has no login. Run it on localhost only; anyone who can reach port 8000 can create tokens.
 
 ## Roadmap
 
@@ -127,4 +146,5 @@ Email and Slack alerts, a weekly owner report, GDPR / EU AI Act compliance expor
 
 - [Promptfoo](https://github.com/promptfoo/promptfoo) (MIT) runs the security scans.
 - Risk categories come from the [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/).
-- Harbour & Hill Outdoor is a fictional company. All documents, names and salaries are made up.
+- Skerry is a fictional company. All documents, names and salaries are made up.
+- The Skerry site's photograph is by Joe Ravi (CC BY-SA 3.0, Wikimedia Commons).

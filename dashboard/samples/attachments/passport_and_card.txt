@@ -1,0 +1,5 @@
+Traveller details
+Name: Example Traveller
+Passport number: PA1234567
+Card: 4111 1111 1111 1111, expiry 09/28
+Please book Cork to Paris on Friday.

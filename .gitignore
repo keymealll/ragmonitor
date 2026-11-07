@@ -1,6 +1,13 @@
-ragmon.db
+# Runtime data
+dashboard/ragmon.db
+*.db
 __pycache__/
 *.pyc
 .venv/
 node_modules/
 .DS_Store
+
+# Secrets: the travel site's API token lives here
+website-chatbot/.env
+
+# Hallmark keeps its own .gitignore inside each .hallmark/ folder (screenshots stay out, log.json stays in)

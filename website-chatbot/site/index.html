@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skerry: short trips from Cork and Dublin</title>
+<meta name="description" content="Skerry plans and books short trips from Cork and Dublin: flights, a hotel and a plan for each day, with an assistant that answers in chat.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="container mast-inner">
+    <nav aria-label="Sections">
+      <a href="#departures">Departures</a>
+      <a href="#deadlines">Deadlines</a>
+      <a href="#bags">Bags</a>
+    </nav>
+    <a class="wordmark" href="/" aria-label="Skerry home">skerry</a>
+    <nav aria-label="Help">
+      <a href="#help">Help</a>
+      <a class="keep" href="#ask">Ask the assistant</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <canvas class="field" role="img" aria-label="Map of Skerry routes from Cork and Dublin to Lisbon, Porto, Barcelona, Paris, Amsterdam and Kraków, drawn in characters"></canvas>
+    <div class="container intro-grid">
+      <div class="intro">
+        <h1 id="hero-title">Short trips from Cork and Dublin.</h1>
+        <p class="lead">Ask the assistant about flights, bags and changes before you book.</p>
+        <div class="actions"><a class="key" href="#departures">See where we fly</a></div>
+      </div>
+
+      <figure class="chat-wrap">
+      <div class="chat cut" id="ask" role="region" aria-labelledby="chat-title">
+        <div class="chat-head">
+          <h2 id="chat-title">Skerry assistant</h2>
+          <p>Answers from the help centre</p>
+        </div>
+        <ol class="chat-log" id="chat-log" aria-live="polite" tabindex="0" aria-label="Conversation">
+          <li class="msg msg--bot">Hi. Ask me about flights, bags, changing dates or anything in your booking.</li>
+          <li class="msg msg--me">Do you fly to Paris?</li>
+          <li class="msg msg--bot">Yes, Skerry flies to Paris from Dublin every day this season.</li>
+        </ol>
+        <div class="chat-suggest" aria-label="Try a question">
+          <button type="button" class="key key--small" data-ask="Do you fly to Paris from Cork?">Paris from Cork?</button>
+          <button type="button" class="key key--small" data-ask="How heavy can my cabin bag be?">Cabin bag weight</button>
+          <button type="button" class="key key--small" data-ask="How do I get a refund?">Getting a refund</button>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <label class="visually-hidden" for="chat-input">Your question</label>
+          <label class="key key--small attach" for="chat-file" title="Attach a text file, such as an itinerary">Attach</label>
+          <input id="chat-file" type="file" accept=".txt,.md,.csv,text/plain,text/markdown,text/csv" class="visually-hidden">
+          <input id="chat-input" name="question" type="text" autocomplete="off" maxlength="1500" placeholder="Ask about a trip" required>
+          <button type="submit" class="key key--primary" id="chat-send">Send</button>
+          <p class="chat-file" id="chat-file-name" aria-live="polite" hidden></p>
+        </form>
+        <noscript><p class="chat-note">The assistant needs JavaScript. Email support@skerry.ie and the team will answer.</p></noscript>
+      </div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="departures" aria-labelledby="dep-title">
+    <div class="container">
+      <div class="head-block">
+        <h2 id="dep-title">Six cities this season</h2>
+        <form class="trip cut" id="trip-form" aria-label="Plan a trip with the assistant">
+          <fieldset><legend>From</legend><div class="tray">
+            <input type="radio" name="from" id="f-ork" value="Cork" checked><label for="f-ork">Cork</label>
+            <input type="radio" name="from" id="f-dub" value="Dublin"><label for="f-dub">Dublin</label>
+          </div></fieldset>
+          <div class="trip-to"><label for="trip-to">To</label>
+            <select id="trip-to" name="to"><option>Paris</option><option>Lisbon</option><option>Porto</option><option>Barcelona</option><option>Amsterdam</option><option>Kraków</option></select></div>
+          <button type="submit" class="key">Plan this trip</button>
+        </form>
+      </div>
+      <table class="routes">
+        <thead><tr><th scope="col">Destination</th><th scope="col">Code</th><th scope="col"><span class="visually-hidden">Ask</span></th></tr></thead>
+        <tbody>
+          <tr class="lead-row"><td><span class="city">Paris</span><div class="when">Daily from Dublin, Fridays from Cork</div></td><td class="mono code">PAR</td><td class="act"><button type="button" class="key key--small" data-ask="When do flights to Paris leave?">Ask about Paris</button></td></tr>
+          <tr><td><span class="city">Lisbon</span></td><td class="mono code">LIS</td><td class="act"><button type="button" class="key key--small" data-ask="Do you fly to Lisbon?">Ask about Lisbon</button></td></tr>
+          <tr><td><span class="city">Porto</span></td><td class="mono code">OPO</td><td class="act"><button type="button" class="key key--small" data-ask="Do you fly to Porto?">Ask about Porto</button></td></tr>
+          <tr><td><span class="city">Barcelona</span></td><td class="mono code">BCN</td><td class="act"><button type="button" class="key key--small" data-ask="Do you fly to Barcelona?">Ask about Barcelona</button></td></tr>
+          <tr><td><span class="city">Amsterdam</span></td><td class="mono code">AMS</td><td class="act"><button type="button" class="key key--small" data-ask="Do you fly to Amsterdam?">Ask about Amsterdam</button></td></tr>
+          <tr><td><span class="city">Kraków</span></td><td class="mono code">KRK</td><td class="act"><button type="button" class="key key--small" data-ask="Do you fly to Kraków?">Ask about Kraków</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section offer" aria-labelledby="offer-title">
+    <div class="container head-block">
+      <h2 id="offer-title">Flights, a hotel and day plans</h2>
+      <p class="lead">One Skerry booking covers all three.</p>
+    </div>
+  <figure class="photo-band">
+    <div data-slot="photo-1" data-alt="Skerry's own photograph: a departure gate or a plane on the stand at Cork or Dublin">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Washington_Dulles_International_Airport_at_Dusk.jpg/1280px-Washington_Dulles_International_Airport_at_Dusk.jpg" srcset="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Washington_Dulles_International_Airport_at_Dusk.jpg/960px-Washington_Dulles_International_Airport_at_Dusk.jpg 960w, https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Washington_Dulles_International_Airport_at_Dusk.jpg/1280px-Washington_Dulles_International_Airport_at_Dusk.jpg 1280w, https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Washington_Dulles_International_Airport_at_Dusk.jpg/1920px-Washington_Dulles_International_Airport_at_Dusk.jpg 1920w, https://upload.wikimedia.org/wikipedia/commons/9/92/Washington_Dulles_International_Airport_at_Dusk.jpg 2750w" sizes="100vw" width="2750" height="1633" alt="An airport terminal with a curved roof and a control tower at dusk" loading="lazy" decoding="async" style="object-position: 50% 55%">
+    </div>
+  </figure>
+  </section>
+
+  <section class="section" id="deadlines" aria-labelledby="dl-title">
+    <div class="container">
+      <div class="head-block">
+        <h2 id="dl-title">Every deadline before you fly</h2>
+        <p class="lead">From booking to take-off.</p>
+      </div>
+      <ol class="ruler">
+        <li><span class="mark">Booking</span><p>Price held for 20 minutes, reference sent by email.</p></li>
+        <li><span class="mark">14 days</span><span class="when">before</span><p>Last day for a full refund.</p></li>
+        <li><span class="mark">7 days</span><span class="when">before</span><p>Last day to change your dates.</p></li>
+        <li><span class="mark">24 h</span><span class="when">before</span><p>Last chance to add a checked bag.</p></li>
+        <li><span class="mark">Take-off</span><p>Your 10 kg cabin bag is included.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--tight-top" id="bags" aria-labelledby="bag-title">
+    <div class="container bags">
+      <div>
+        <h2 id="bag-title">What your bags will cost</h2>
+        <dl class="facts">
+          <div><dt>Cabin bag up to 10 kg</dt><dd>Included</dd></div>
+          <div><dt>Checked bag up to 20 kg</dt><dd>€35 each way</dd></div>
+          <div><dt>Adding one in the app</dt><dd>Up to 24 h before</dd></div>
+        </dl>
+      </div>
+      <form class="calc cut" id="bag-calc" aria-label="Bag cost calculator" onsubmit="return false">
+        <fieldset><legend>Checked bags</legend><div class="tray">
+          <input type="radio" name="bags" id="b0" value="0"><label for="b0">0</label>
+          <input type="radio" name="bags" id="b1" value="1" checked><label for="b1">1</label>
+          <input type="radio" name="bags" id="b2" value="2"><label for="b2">2</label>
+          <input type="radio" name="bags" id="b3" value="3"><label for="b3">3</label>
+        </div></fieldset>
+        <fieldset><legend>Trip</legend><div class="tray">
+          <input type="radio" name="trip" id="t1" value="1"><label for="t1">One way</label>
+          <input type="radio" name="trip" id="t2" value="2" checked><label for="t2">There and back</label>
+        </div></fieldset>
+        <div class="total"><output id="bag-total" for="b0 b1 b2 b3 t1 t2">€70</output>
+          <p id="bag-line">1 bag, there and back.</p></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="help" id="help" aria-labelledby="help-title">
+    <div class="container help-inner">
+      <h2 id="help-title">People answer from 8am to 8pm</h2>
+      <div>
+        <p>Every day, by email. The assistant at the top answers at any hour.</p>
+        <a class="key" href="mailto:support@skerry.ie">Email support@skerry.ie</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="colophon">
+  <div class="container">
+    <p>Skerry is a fictional travel app built for the RagMonitor project at Corkathon 2026. Its assistant runs a small language model, and RagMonitor checks every chat for leaks.</p>
+    <p data-credits>Photograph: <a href="https://commons.wikimedia.org/wiki/File:Washington_Dulles_International_Airport_at_Dusk.jpg">Joe Ravi</a> (CC BY-SA 3.0, Wikimedia Commons)</p>
+  </div>
+</footer>
+
+<script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
+document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
+<script src="app.js"></script>
+</body>
+</html>

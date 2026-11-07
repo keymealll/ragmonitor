@@ -26,8 +26,11 @@ An always-on monitor for SMEs running AI chatbots trained on their own documents
 - Retrieval: pure-Python TF-IDF in `ragmon/kb.py` (deterministic, no embedding download). Chroma swap = replace `kb.search`.
 - SQLite (or JSON) for logs and alerts.
 - Run on localhost for the demo video. No deployment, no auth.
-- One command: `uvicorn server:app --port 8000` (bot + monitor + dashboard). `python scripts/demo.py seed|run` for the demo. `python -m unittest discover tests` guards the demo attacks.
-- No LLM key → offline demo model (naive, obeys injected text) + rule-based policy fallback. `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` switches to a real model + LLM judge.
+- **Two projects:** `dashboard/` = RagMonitor (FastAPI on :8000: RAG bot API, detectors, Promptfoo, dashboard UI in `dashboard/ui/`). `website-chatbot/` = Skerry, a fictional Cork travel app site (FastAPI on :4000, Hallmark Cobalt theme) whose chat calls RagMonitor `POST /v1/chat` with a Bearer API token kept server-side in `website-chatbot/.env`. Port 3000 is taken by Grafana on Kamil's Mac.
+- Run: `cd dashboard && uvicorn server:app --port 8000`, `python scripts/apptoken.py create "Skerry travel site"`, then `cd website-chatbot && uvicorn server:app --port 4000`. `python scripts/demo.py seed|run` and `python -m unittest discover tests` run from `dashboard/`.
+- Model: Ollama `qwen2.5:1.5b` by default (auto-detected; real 1 to 4 s latency). `BOT_PROMPT=naive` (default) tells it to obey document instructions, like a careless deployment. `LLM_PROVIDER=offline` = scripted demo bot (no LLM, ~1 ms; a volunteer spotted the 1 ms, so never present it as a real model). Policy checks are rule-based on ollama/offline; LLM judge only with an API key.
+- Demo company is now Skerry (travel), not Harbour & Hill. KB filenames unchanged: `handbook.md`, `refund_policy.md` (poisoned), `salaries_confidential.md` (canaries).
+- Detector `confidential_value_leak`: the real model rewrites answers without canary tokens, so money, percentages and names found only in confidential chunks are matched too.
 
 ## Architecture
 1. **Demo RAG chatbot** over a fake company knowledge base (stands in for a Chatbase-style bot).

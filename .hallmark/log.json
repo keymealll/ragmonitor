@@ -1,5 +1,33 @@
 [
  {
+  "shape": "Index-First",
+  "theme": "cobalt",
+  "axes": "light/grotesk-sans/cool",
+  "hero": "Counter",
+  "nav": "masthead",
+  "footer": "colophon block",
+  "imagery": "photographs, library 1, duotone; the product live in the hero",
+  "photos": [
+   "Washington Dulles International Airport at Dusk.jpg"
+  ],
+  "entry": "live trip assistant over an ASCII route field",
+  "fingerprint": "index-first/cobalt/counter/masthead/colophon",
+  "sections": [
+   "hero: live assistant",
+   "departures table with trip picker",
+   "showcase: offer head over photo",
+   "deadlines ruler",
+   "bag calculator",
+   "graphite help band",
+   "colophon"
+  ],
+  "signature": "the trip assistant answering live in the hero, over an ASCII field of the routes Skerry flies",
+  "waived": [],
+  "prompt": "travel app hero page with the website chatbot, Cobalt",
+  "date": "2026-11-07",
+  "mode": "build"
+ },
+ {
   "mode": "redesign",
   "depth": "full",
   "scope": "app",
